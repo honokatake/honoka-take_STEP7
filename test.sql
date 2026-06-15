@@ -90,7 +90,7 @@ INSERT INTO orders (id, user_id, order_date) VALUES
     AND gender = 'female';
 
  --設問4
- SELECT * 
+ SELECT product_name,price
  FROM products;
 
  --設問5
@@ -111,11 +111,13 @@ JOIN products
 GROUP BY order_items.id;
 
 --設問7
-SELECT order_items.quantity, users.name
+SELECT 
+    users.name AS 'ユーザ名',
+    COUNT(orders.id) AS '注文件数'
 FROM users
-JOIN order_items
-    ON users.id = order_items.id
-GROUP BY users.id;
+JOIN orders
+    ON users.id = orders.user_id
+GROUP BY users.id, users.name;
 
 --設問8
 SELECT users.name AS 'ユーザ名',
@@ -139,7 +141,7 @@ JOIN order_items
     ON orders.id = order_items.order_id
 JOIN products
     ON products.id = order_items.product_id
-GROUP BY orders.id,users.name
+GROUP BY users.id,users.name
 ORDER BY 注文金額 DESC
 LIMIT 1;
 
@@ -155,7 +157,7 @@ GROUP BY products.id,products.product_name;
 --設問11
 SELECT users.name
 FROM users
-JOIN orders
+LEFT JOIN orders
     ON users.id = orders.user_id
 WHERE orders.id IS NULL;
 
@@ -194,26 +196,30 @@ JOIN products
 ORDER BY orders.order_date;
 
 --設問15
-SELECT products.product_name
+SELECT 
+    products.product_name AS '商品名',
+    SUM(order_items.quantity) AS '購入数'
 FROM products
 JOIN order_items
     ON products.id = order_items.product_id
-ORDER BY order_items.quantity DESC
+GROUP BY products.id, products.product_name
+ORDER BY SUM(order_items.quantity) DESC
 LIMIT 1;
 
 --設問16
-SELECT order_items.quantity
+SELECT
+    MONTH(order_date) as '月',
+    COUNT(*) AS '注文件数'
 FROM orders
-JOIN order_items
-    ON orders.id = order_items.order_id
-ORDER BY orders.order_date;
+GROUP BY MONTH(order_date),
+ORDER BY MONTH(order_date);
 
 --設問17
 SELECT products.product_name
 FROM products
-JOIN order_items
+LEFT JOIN order_items
     ON products.id = order_items.product_id
-WHERE products.id IS NULL;
+WHERE order_items,product_id IS NULL;
 
 --設問18
 CREATE INDEX idx_order_items 
@@ -222,15 +228,23 @@ ON order_items(product_id);
 --設問19
 SELECT 
     users.name AS 'ユーザ名',
-    AVG(products.price) AS '平均注文金額'
+    AVG(orders_total.total_amount) AS '平均注文金額'
 FROM users
-JOIN orders
-    ON users.id = orders.user_id
-JOIN order_items
-    ON orders.id = order_items.order_id
-JOIN products
-    ON products.id = order_items.product_id
-GROUP BY users.name;
+JOIN (
+    SELECT
+        orders.id,
+        orders.user_id,
+        SUM(order_items.quantity * products.price) AS total_amount
+    FROM orders
+    JOIN order_items
+        ON orders.id = order_items.order_id
+    JOIN products
+        ON products.id = order_items.product_id
+    GROUP BY orders.id,orders.user_id
+) AS orders_total
+ ON users.id = orders_total.user_id
+ GROUP BY users.id, users.name;
+
 
 --設問20
 SELECT 
@@ -242,20 +256,20 @@ JOIN orders
 GROUP BY users.id;
 
 --設問21
-INSERT INTO users(name,age,gender,created_at)
-VALUES ('中村愛',25,'female',2050-06-01);
+INSERT INTO users(id,name,age,gender,created_at)
+VALUES (6,'中村愛',25,'female','2025-06-01');
 
 --設問22
-INSERT INTO products(product_name,price)
-VALUES ('エアコン',60000);
+INSERT INTO products(id,product_name,price)
+VALUES (6,'エアコン',60000);
 
 --設問23
 INSERT INTO orders(id,user_id,order_date)
-VALUES (10,1,2026-06-10);
+VALUES (10,1,'2025-06-10');
 
 --設問24
-INSERT INTO order_items(order_id,product_id,quantity)
-VALUES (10,6,1);
+INSERT INTO order_items(id,order_id,product_id,quantity)
+VALUES (10,10,6,1);
 
 --設問25
 UPDATE users
@@ -268,8 +282,8 @@ SET price = price * 1.10;
 
 --設問27
 UPDATE orders
-SET order_date = 2024-05-01
-WHERE order_date > 2024-05-01;
+SET order_date = '2024-05-01'
+WHERE order_date < '2024-05-01';
 
 --設問28
 DELETE
@@ -279,7 +293,7 @@ WHERE id = 5;
 --設問29
 DELETE
 FROM order_items
-WHERE product_id = 5;
+WHERE order_id = 5;
 
 --設問30
 DELETE 
@@ -287,5 +301,5 @@ FROM products
 WHERE NOT EXISTS (
     SELECT 1
     FROM order_items
-    WHERE product_id = 1
-)
+    WHERE order_items.product_id = products.id
+);
